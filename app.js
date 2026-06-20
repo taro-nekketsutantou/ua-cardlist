@@ -413,14 +413,22 @@ function renderDetails() {
 
     <div class="detail-section">
       <h3>Effect · Chinese</h3>
-      <div class="effect-text">${escapeHtml(c.effect_cn || "—")}</div>
+      <div class="effect-text">${formatEffectText(c.effect_cn)}</div>
     </div>
 
     <div class="detail-section">
       <h3>Effect · Japanese</h3>
-      <div class="effect-text">${escapeHtml(c.effect_jp || "—")}</div>
+      <div class="effect-text">${formatEffectText(c.effect_jp)}</div>
     </div>
   `;
+}
+
+function formatEffectText(value) {
+  return escapeHtml(
+    String(value || "—")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/&lt;br\s*\/?&gt;/gi, "\n")
+  ).replace(/\n/g, "<br>");
 }
 
 function stat(label, value) {
