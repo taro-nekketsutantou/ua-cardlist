@@ -1,121 +1,426 @@
-const data = [
-  { id:"1872425-91-6", title:"Pentaphenyl triazine", formula:"C33H25N3", similarity:99, components:1 },
-  { id:"83820-00-2", title:"Tetraphenyl triazine", formula:"C30H20N3", similarity:96, components:1 },
-  { id:"1872425-97-2", title:"Tetrakis… triazine", formula:"C63H41N9", similarity:92, components:1 },
-];
+const IMAGE_BASE = "https://www.unionarena-tcg.com/jp/images/cardlist/card/";
+const PLACEHOLDER_SVG = `data:image/svg+xml;utf8,${encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="420" viewBox="0 0 300 420">
+  <rect width="300" height="420" rx="18" fill="#f3f4f6"/>
+  <text x="150" y="205" text-anchor="middle" font-family="Arial" font-size="18" fill="#6b7280">No image</text>
+</svg>`)}`;
 
-const state = {
-  q: "",
-  similarityTiers: new Set(),
-  components: new Set(),
-  sort: "relevance",
+const COLOR_LETTER_MAP = {
+  B: "Blue",
+  R: "Red",
+  Y: "Yellow",
+  G: "Green",
+  P: "Purple",
+  W: "White",
+  K: "Black"
 };
 
-const SIM_OPTIONS = [">=99","95-98","90-94","85-89"];
-const COMP_OPTIONS = [1,2,3,4];
+const state = {
+  allCards: [],
+  filteredCards: [],
+  selectedId: null,
+  q: "",
+  sort: "code_asc",
+  filters: {
+    ip_code: new Set(),
+    series: new Set(),
+    rarity: new Set(),
+    color: new Set(),
+    type: new Set(),
+    trigger: new Set(),
+    energy_colors: new Set(),
+    energy_has_plus: new Set(),
+  },
+  ranges: {
+    energy_required: { min: "", max: "" },
+    ap: { min: "", max: "" },
+    bp: { min: "", max: "" },
+    energy_count: { min: "", max: "" },
+  },
+  collapsed: new Set()
+};
 
-function matchesQuery(r, q) {
-  if (!q) return true;
-  q = q.toLowerCase();
-  return (r.id + " " + r.title + " " + r.formula).toLowerCase().includes(q);
-}
+const filterGroups = [
+  { key: "ip_code", label: "IP Code" },
+  { key: "series", label: "Series" },
+  { key: "rarity", label: "Rarity" },
+  { key: "color", label: "Color" },
+  { key: "type", label: "Type" },
+  { key: "trigger", label: "Trigger" },
+  { key: "energy_colors", label: "Generated Energy Color" },
+  { key: "energy_has_plus", label: "Energy +" },
+];
 
-function matchesSimilarity(r, tiers) {
-  if (tiers.size === 0) return true;
-  for (const t of tiers) {
-    if (t === ">=99" && r.similarity >= 99) return true;
-    if (t === "95-98" && r.similarity >= 95 && r.similarity <= 98) return true;
-    if (t === "90-94" && r.similarity >= 90 && r.similarity <= 94) return true;
-    if (t === "85-89" && r.similarity >= 85 && r.similarity <= 89) return true;
+const rangeGroups = [
+  { key: "energy_required", label: "Energy Required" },
+  { key: "ap", label: "AP" },
+  { key: "bp", label: "BP" },
+  { key: "energy_count", label: "Generated Energy Count" },
+];
+
+const tile = { width: 184, height: 286, gap: 10, overscanRows: 3 };
+let layout = { cols: 1, rows: 0, visibleStart: 0, visibleEnd: 0 };
+let searchTimer = null;
+
+const el = {
+  search: document.getElementById("searchInput"),
+  sort: document.getElementById("sortSelect"),
+  count: document.getElementById("resultCount"),
+  filterRoot: document.getElementById("filterRoot"),
+  chips: document.getElementById("activeChips"),
+  clear: document.getElementById("clearFiltersBtn"),
+  scroller: document.getElementById("gridScroller"),
+  grid: document.getElementById("gridInner"),
+  details: document.getElementById("detailsRoot"),
+};
+
+init();
+
+async function init() {
+  bindEvents();
+  try {
+    const res = await fetch("cards.json");
+    const raw = await res.json();
+    state.allCards = raw.map(normalizeCard);
+  } catch (err) {
+    console.error(err);
+    state.allCards = [];
+    el.details.textContent = "Could not load cards.json.";
   }
-  return false;
+  state.selectedId = state.allCards[0]?.id ?? null;
+  renderFilters();
+  applyAndRender();
 }
 
-function matchesComponents(r, comps) {
-  if (comps.size === 0) return true;
-  return comps.has(r.components);
+function bindEvents() {
+  el.search.addEventListener("input", (e) => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      state.q = e.target.value.trim().toLowerCase();
+      applyAndRender();
+    }, 180);
+  });
+
+  el.sort.addEventListener("change", (e) => {
+    state.sort = e.target.value;
+    applyAndRender();
+  });
+
+  el.clear.addEventListener("click", () => {
+    state.q = "";
+    el.search.value = "";
+    for (const set of Object.values(state.filters)) set.clear();
+    for (const range of Object.values(state.ranges)) { range.min = ""; range.max = ""; }
+    renderFilters();
+    applyAndRender();
+  });
+
+  el.scroller.addEventListener("scroll", renderGrid);
+  window.addEventListener("resize", renderGrid);
 }
 
-function applyFilters(rows) {
-  let out = rows
-    .filter(r => matchesQuery(r, state.q))
-    .filter(r => matchesSimilarity(r, state.similarityTiers))
-    .filter(r => matchesComponents(r, state.components));
-
-  if (state.sort === "similarity_desc") out.sort((a,b) => b.similarity - a.similarity);
-  return out;
+function normalizeCard(c) {
+  const id = c.id || `${c.series}_${c.card_number}`;
+  const energyRaw = c.energy_generated_raw ?? c.energy_generated ?? "";
+  const parsed = parseEnergy(energyRaw, c.energy_colors);
+  return {
+    ...c,
+    id,
+    image_url: c.image_url || `${IMAGE_BASE}${id}.png`,
+    energy_generated_raw: energyRaw,
+    energy_colors: Array.isArray(c.energy_colors) ? c.energy_colors : parsed.colors,
+    energy_count: Number.isFinite(Number(c.energy_count)) ? Number(c.energy_count) : parsed.count,
+    energy_has_plus: typeof c.energy_has_plus === "boolean" ? c.energy_has_plus : parsed.hasPlus,
+    energy_signature: parsed.signature,
+    search_text: [
+      id, c.ip_code, c.series, c.card_number,
+      c.card_name_jp, c.card_name_cn,
+      c.rarity, c.color, c.type, c.trigger,
+      c.effect_jp, c.effect_cn,
+      energyRaw
+    ].filter(Boolean).join(" ").toLowerCase()
+  };
 }
 
-function render() {
-  const filtered = applyFilters([...data]);
+function parseEnergy(raw, existingColors) {
+  if (Array.isArray(existingColors)) {
+    return { colors: existingColors, count: String(raw || "").replace(/\+/g, "").length, hasPlus: String(raw || "").includes("+"), signature: String(raw || "") };
+  }
+  const s = String(raw || "").trim().toUpperCase();
+  const hasPlus = s.includes("+");
+  const letters = [...s.replace(/\+/g, "")].filter(ch => /[A-Z]/.test(ch));
+  const colors = [...new Set(letters.map(ch => COLOR_LETTER_MAP[ch] || ch))];
+  return {
+    colors,
+    count: letters.length,
+    hasPlus,
+    signature: letters.sort().join("") + (hasPlus ? "+" : "")
+  };
+}
 
-  document.getElementById("count").textContent = `${filtered.length} results`;
+function applyAndRender() {
+  state.filteredCards = state.allCards.filter(cardMatches);
+  sortCards(state.filteredCards);
+  if (state.selectedId && !state.filteredCards.some(c => c.id === state.selectedId)) {
+    state.selectedId = state.filteredCards[0]?.id ?? null;
+  }
+  el.count.textContent = state.filteredCards.length;
+  renderFilters();
+  renderChips();
+  renderGrid();
+  renderDetails();
+}
 
-  // chips (active filters)
-  const chips = [];
-  if (state.q) chips.push(`q: "${state.q}"`);
-  for (const s of state.similarityTiers) chips.push(`Similarity ${s}`);
-  for (const c of state.components) chips.push(`Components ${c}`);
-  document.getElementById("chips").innerHTML = chips.map(x => `<span class="chip">${x}</span>`).join("");
+function cardMatches(c) {
+  if (state.q && !c.search_text.includes(state.q)) return false;
 
-  // cards
-  document.getElementById("cards").innerHTML = filtered.map(r => `
-    <div class="card">
-      <div class="muted">${r.id}</div>
-      <div class="title">${r.title}</div>
-      <div class="muted">${r.formula} • similarity ${r.similarity}</div>
-    </div>
-  `).join("");
+  for (const [key, selected] of Object.entries(state.filters)) {
+    if (!selected.size) continue;
+    if (key === "energy_colors") {
+      if (!c.energy_colors?.some(x => selected.has(x))) return false;
+    } else if (key === "energy_has_plus") {
+      if (!selected.has(String(Boolean(c.energy_has_plus)))) return false;
+    } else {
+      const v = c[key];
+      if (!selected.has(String(v ?? ""))) return false;
+    }
+  }
+
+  for (const [key, range] of Object.entries(state.ranges)) {
+    const v = Number(c[key]);
+    if (range.min !== "" && !(Number.isFinite(v) && v >= Number(range.min))) return false;
+    if (range.max !== "" && !(Number.isFinite(v) && v <= Number(range.max))) return false;
+  }
+  return true;
+}
+
+function sortCards(cards) {
+  const byStr = (a, b, key) => String(a[key] ?? "").localeCompare(String(b[key] ?? ""), undefined, { numeric: true });
+  const byNum = (a, b, key) => (Number(a[key]) || 0) - (Number(b[key]) || 0);
+  cards.sort((a, b) => {
+    switch (state.sort) {
+      case "code_desc": return -byStr(a, b, "id");
+      case "bp_desc": return -byNum(a, b, "bp") || byStr(a, b, "id");
+      case "bp_asc": return byNum(a, b, "bp") || byStr(a, b, "id");
+      case "cost_desc": return -byNum(a, b, "energy_required") || byStr(a, b, "id");
+      case "cost_asc": return byNum(a, b, "energy_required") || byStr(a, b, "id");
+      default: return byStr(a, b, "id");
+    }
+  });
 }
 
 function renderFilters() {
-  // Similarity
-  const simDiv = document.getElementById("similarity-filters");
-  simDiv.innerHTML = SIM_OPTIONS.map(opt => {
-    const checked = state.similarityTiers.has(opt) ? "checked" : "";
-    return `<label><input type="checkbox" data-sim="${opt}" ${checked}/> ${opt}</label><br>`;
-  }).join("");
+  const html = [];
+  for (const group of filterGroups) {
+    const options = getOptions(group.key);
+    const collapsed = state.collapsed.has(group.key);
+    html.push(`
+      <section class="filter-section">
+        <button class="filter-heading" data-collapse="${group.key}">
+          <span>${escapeHtml(group.label)}</span>
+          <span class="filter-count">${options.length} ${collapsed ? "+" : "−"}</span>
+        </button>
+        <div class="checkbox-list" ${collapsed ? "hidden" : ""}>
+          ${options.map(o => renderCheckbox(group.key, o)).join("")}
+        </div>
+      </section>
+    `);
+  }
+  for (const group of rangeGroups) {
+    const r = state.ranges[group.key];
+    html.push(`
+      <section class="filter-section">
+        <div class="filter-label">${escapeHtml(group.label)}</div>
+        <div class="range-row">
+          <input class="number-input" data-range-min="${group.key}" type="number" placeholder="Min" value="${escapeHtml(r.min)}" />
+          <input class="number-input" data-range-max="${group.key}" type="number" placeholder="Max" value="${escapeHtml(r.max)}" />
+        </div>
+      </section>
+    `);
+  }
+  el.filterRoot.innerHTML = html.join("");
 
-  // Components
-  const compDiv = document.getElementById("component-filters");
-  compDiv.innerHTML = COMP_OPTIONS.map(n => {
-    const checked = state.components.has(n) ? "checked" : "";
-    return `<label><input type="checkbox" data-comp="${n}" ${checked}/> ${n}</label><br>`;
-  }).join("");
+  el.filterRoot.querySelectorAll("[data-filter]").forEach(input => {
+    input.addEventListener("change", (e) => {
+      const key = e.target.dataset.filter;
+      const value = e.target.value;
+      e.target.checked ? state.filters[key].add(value) : state.filters[key].delete(value);
+      applyAndRender();
+    });
+  });
+  el.filterRoot.querySelectorAll("[data-range-min]").forEach(input => {
+    input.addEventListener("input", (e) => {
+      state.ranges[e.target.dataset.rangeMin].min = e.target.value;
+      applyAndRender();
+    });
+  });
+  el.filterRoot.querySelectorAll("[data-range-max]").forEach(input => {
+    input.addEventListener("input", (e) => {
+      state.ranges[e.target.dataset.rangeMax].max = e.target.value;
+      applyAndRender();
+    });
+  });
+  el.filterRoot.querySelectorAll("[data-collapse]").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      const key = e.currentTarget.dataset.collapse;
+      state.collapsed.has(key) ? state.collapsed.delete(key) : state.collapsed.add(key);
+      renderFilters();
+    });
+  });
 }
 
-document.addEventListener("change", (e) => {
-  if (e.target.matches("[data-sim]")) {
-    const opt = e.target.dataset.sim;
-    e.target.checked ? state.similarityTiers.add(opt) : state.similarityTiers.delete(opt);
-    render();
+function getOptions(key) {
+  const counts = new Map();
+  for (const c of state.allCards) {
+    const values = key === "energy_colors" ? (c.energy_colors || []) : key === "energy_has_plus" ? [String(Boolean(c.energy_has_plus))] : [String(c[key] ?? "")];
+    for (const value of values) {
+      if (!value) continue;
+      counts.set(value, (counts.get(value) || 0) + 1);
+    }
   }
-  if (e.target.matches("[data-comp]")) {
-    const n = Number(e.target.dataset.comp);
-    e.target.checked ? state.components.add(n) : state.components.delete(n);
-    render();
+  return [...counts.entries()]
+    .map(([value, count]) => ({ value, count }))
+    .sort((a, b) => a.value.localeCompare(b.value, undefined, { numeric: true }));
+}
+
+function renderCheckbox(key, option) {
+  const checked = state.filters[key].has(option.value) ? "checked" : "";
+  const label = key === "energy_has_plus" ? (option.value === "true" ? "Has +" : "No +") : option.value;
+  return `
+    <label class="checkbox-row" title="${escapeHtml(label)}">
+      <input type="checkbox" data-filter="${key}" value="${escapeHtml(option.value)}" ${checked} />
+      <span class="option-name">${escapeHtml(label)}</span>
+      <span class="option-count">${option.count}</span>
+    </label>
+  `;
+}
+
+function renderChips() {
+  const chips = [];
+  if (state.q) chips.push({ label: `Search: ${state.q}`, action: "search" });
+  for (const [key, set] of Object.entries(state.filters)) {
+    for (const value of set) chips.push({ label: `${key}: ${value}`, key, value });
   }
-  if (e.target.id === "sort") {
-    state.sort = e.target.value;
-    render();
+  for (const [key, r] of Object.entries(state.ranges)) {
+    if (r.min !== "") chips.push({ label: `${key} ≥ ${r.min}`, range: key, bound: "min" });
+    if (r.max !== "") chips.push({ label: `${key} ≤ ${r.max}`, range: key, bound: "max" });
   }
-});
+  el.chips.innerHTML = chips.map((c, i) => `<span class="chip">${escapeHtml(c.label)} <button data-chip="${i}">×</button></span>`).join("");
+  el.chips.querySelectorAll("[data-chip]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const c = chips[Number(btn.dataset.chip)];
+      if (c.action === "search") { state.q = ""; el.search.value = ""; }
+      if (c.key) state.filters[c.key].delete(c.value);
+      if (c.range) state.ranges[c.range][c.bound] = "";
+      applyAndRender();
+    });
+  });
+}
 
-document.getElementById("q").addEventListener("input", (e) => {
-  state.q = e.target.value.trim();
-  render();
-});
+function renderGrid() {
+  const width = el.scroller.clientWidth - 28;
+  const height = el.scroller.clientHeight;
+  const fullW = tile.width + tile.gap;
+  const fullH = tile.height + tile.gap;
+  const cols = Math.max(1, Math.floor(width / fullW));
+  const rows = Math.ceil(state.filteredCards.length / cols);
+  const scrollTop = el.scroller.scrollTop;
+  const startRow = Math.max(0, Math.floor(scrollTop / fullH) - tile.overscanRows);
+  const endRow = Math.min(rows, Math.ceil((scrollTop + height) / fullH) + tile.overscanRows);
+  const start = startRow * cols;
+  const end = Math.min(state.filteredCards.length, endRow * cols);
+  layout = { cols, rows, visibleStart: start, visibleEnd: end };
+  el.grid.style.height = `${rows * fullH}px`;
 
-document.getElementById("clear").addEventListener("click", () => {
-  state.q = "";
-  state.similarityTiers.clear();
-  state.components.clear();
-  state.sort = "relevance";
-  document.getElementById("q").value = "";
-  document.getElementById("sort").value = "relevance";
-  renderFilters();
-  render();
-});
+  const pieces = [];
+  for (let i = start; i < end; i++) {
+    const c = state.filteredCards[i];
+    const row = Math.floor(i / cols);
+    const col = i % cols;
+    pieces.push(`
+      <div class="card-tile" style="left:${col * fullW}px; top:${row * fullH}px; width:${tile.width}px; height:${tile.height}px;">
+        <button class="card-button ${c.id === state.selectedId ? "selected" : ""}" data-card-id="${escapeHtml(c.id)}" title="${escapeHtml(c.id)}">
+          <div class="card-img-wrap">
+            <img class="card-img" src="${escapeHtml(c.image_url)}" alt="${escapeHtml(c.id)}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${PLACEHOLDER_SVG}'" />
+          </div>
+          <div class="card-meta">
+            <div class="card-code">${escapeHtml(c.id)}</div>
+            <div class="card-name">${escapeHtml(c.card_name_cn || c.card_name_jp || "Untitled")}</div>
+          </div>
+        </button>
+      </div>
+    `);
+  }
+  el.grid.innerHTML = pieces.join("");
+  el.grid.querySelectorAll("[data-card-id]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      state.selectedId = btn.dataset.cardId;
+      renderGrid();
+      renderDetails();
+    });
+  });
+}
 
-renderFilters();
-render();
+function renderDetails() {
+  const c = state.allCards.find(x => x.id === state.selectedId);
+  if (!c) {
+    el.details.className = "details-empty";
+    el.details.textContent = "Select a card to view details.";
+    return;
+  }
+  el.details.className = "";
+  el.details.innerHTML = `
+    <img class="detail-image" src="${escapeHtml(c.image_url)}" alt="${escapeHtml(c.id)}" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${PLACEHOLDER_SVG}'" />
+    <div class="detail-title">${escapeHtml(c.card_name_cn || c.card_name_jp || c.id)}</div>
+    <div class="detail-subtitle">${escapeHtml(c.card_name_jp || "")} · ${escapeHtml(c.id)}</div>
+
+    <div class="pills">
+      ${pill(c.rarity)} ${pill(c.color, c.color)} ${pill(c.type)} ${pill(c.trigger)}
+    </div>
+
+    <div class="stat-grid">
+      ${stat("Energy Required", c.energy_required)}
+      ${stat("AP", c.ap)}
+      ${stat("BP", c.bp)}
+      ${stat("Generated", c.energy_generated_raw || c.energy_colors?.join("/"))}
+      ${stat("Energy Count", c.energy_count)}
+      ${stat("Has +", c.energy_has_plus ? "Yes" : "No")}
+      ${stat("BP±", c.bp_pm)}
+      ${stat("Affinity", c.affinity)}
+    </div>
+
+    <div class="detail-section">
+      <h3>Generated energy colors</h3>
+      <div class="pills">${(c.energy_colors || []).map(x => pill(x, x)).join("") || `<span class="muted">None</span>`}</div>
+    </div>
+
+    <div class="detail-section">
+      <h3>Effect · Chinese</h3>
+      <div class="effect-text">${escapeHtml(c.effect_cn || "—")}</div>
+    </div>
+
+    <div class="detail-section">
+      <h3>Effect · Japanese</h3>
+      <div class="effect-text">${escapeHtml(c.effect_jp || "—")}</div>
+    </div>
+  `;
+}
+
+function stat(label, value) {
+  return `<div class="stat-box"><div class="stat-label">${escapeHtml(label)}</div><div class="stat-value">${escapeHtml(value ?? "—")}</div></div>`;
+}
+
+function pill(text, colorClass = "") {
+  if (text == null || text === "") return "";
+  const safeClass = String(colorClass).replace(/[^a-zA-Z0-9_-]/g, "");
+  return `<span class="pill ${safeClass}">${escapeHtml(text)}</span>`;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}

@@ -1,36 +1,62 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Cardlist Tool</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Union Arena Cardlist Translation</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <header class="topbar">
-    <input id="q" placeholder="Search…" />
-    <select id="sort">
-      <option value="relevance">Relevance</option>
-      <option value="similarity_desc">Similarity ↓</option>
-    </select>
-    <div id="count"></div>
-  </header>
-
-  <div class="app">
+  <div class="app-shell">
     <aside class="sidebar">
-      <h3>Similarity</h3>
-      <div id="similarity-filters"></div>
+      <div class="brand">
+        <div class="brand-title">Union Arena</div>
+        <div class="brand-subtitle">Translation Cardlist</div>
+      </div>
 
-      <h3>Number of components</h3>
-      <div id="component-filters"></div>
+      <section class="filter-section search-section">
+        <label class="filter-label" for="searchInput">Search</label>
+        <input id="searchInput" class="search-input" placeholder="Name, code, effect…" autocomplete="off" />
+      </section>
 
-      <button id="clear">Clear filters</button>
+      <div id="activeChips" class="active-chips"></div>
+
+      <div class="filter-actions">
+        <button id="clearFiltersBtn" class="secondary-btn">Clear filters</button>
+      </div>
+
+      <div id="filterRoot"></div>
     </aside>
 
-    <main>
-      <div id="chips" class="chips"></div>
-      <div id="cards" class="cards"></div>
+    <main class="main-panel">
+      <header class="results-bar">
+        <div>
+          <strong id="resultCount">0</strong>
+          <span class="muted">results</span>
+        </div>
+        <div class="toolbar">
+          <label for="sortSelect" class="toolbar-label">Sort</label>
+          <select id="sortSelect" class="sort-select">
+            <option value="code_asc">Card no. A→Z</option>
+            <option value="code_desc">Card no. Z→A</option>
+            <option value="bp_desc">BP high→low</option>
+            <option value="bp_asc">BP low→high</option>
+            <option value="cost_asc">Energy required low→high</option>
+            <option value="cost_desc">Energy required high→low</option>
+          </select>
+        </div>
+      </header>
+
+      <section id="gridScroller" class="grid-scroller" aria-label="Card image results">
+        <div id="gridInner" class="grid-inner"></div>
+      </section>
     </main>
+
+    <aside class="details-panel">
+      <div id="detailsRoot" class="details-empty">
+        Select a card to view details.
+      </div>
+    </aside>
   </div>
 
   <script src="app.js"></script>

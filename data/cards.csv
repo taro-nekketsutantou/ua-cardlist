@@ -1,0 +1,4 @@
+ip_code,series,card_number,card_name_jp,card_name_cn,rarity,color,type,energy_required,ap,bp,bp_pm,affinity,energy_generated_raw,effect_jp,effect_cn,trigger
+MST,UA54BT,MST-1-001,エリス,艾莉絲,C,Blue,Character,0,1,1500,,,B,,,get
+MST,UA54BT,MST-1-002,サンプル,示例卡,U,Yellow,Character,2,1,3000,,,YYY,これは長い効果テキストのサンプルです。,這是一段較長效果文字的示例。右側面板會完整顯示，不會影響中間卡圖列表的固定高度。,draw
+MST,UA54BT,MST-1-003,サンプル二,示例卡二,R,Red,Event,3,1,,,,R+,イベントカードのサンプル。,事件卡示例。可以用於測試 R+ 的能量過濾。,special

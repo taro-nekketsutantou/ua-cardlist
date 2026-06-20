@@ -1,0 +1,80 @@
+[
+  {
+    "ip_code": "MST",
+    "series": "UA54BT",
+    "card_number": "MST-1-001",
+    "card_name_jp": "エリス",
+    "card_name_cn": "艾莉絲",
+    "rarity": "C",
+    "color": "Blue",
+    "type": "Character",
+    "energy_required": 0,
+    "ap": 1,
+    "bp": 1500,
+    "bp_pm": null,
+    "affinity": null,
+    "energy_generated_raw": "B",
+    "effect_jp": null,
+    "effect_cn": null,
+    "trigger": "get",
+    "id": "UA54BT_MST-1-001",
+    "image_url": "https://www.unionarena-tcg.com/jp/images/cardlist/card/UA54BT_MST-1-001.png",
+    "energy_colors": [
+      "Blue"
+    ],
+    "energy_count": 1,
+    "energy_has_plus": false
+  },
+  {
+    "ip_code": "MST",
+    "series": "UA54BT",
+    "card_number": "MST-1-002",
+    "card_name_jp": "サンプル",
+    "card_name_cn": "示例卡",
+    "rarity": "U",
+    "color": "Yellow",
+    "type": "Character",
+    "energy_required": 2,
+    "ap": 1,
+    "bp": 3000,
+    "bp_pm": null,
+    "affinity": null,
+    "energy_generated_raw": "YYY",
+    "effect_jp": "これは長い効果テキストのサンプルです。",
+    "effect_cn": "這是一段較長效果文字的示例。右側面板會完整顯示，不會影響中間卡圖列表的固定高度。",
+    "trigger": "draw",
+    "id": "UA54BT_MST-1-002",
+    "image_url": "https://www.unionarena-tcg.com/jp/images/cardlist/card/UA54BT_MST-1-002.png",
+    "energy_colors": [
+      "Yellow"
+    ],
+    "energy_count": 3,
+    "energy_has_plus": false
+  },
+  {
+    "ip_code": "MST",
+    "series": "UA54BT",
+    "card_number": "MST-1-003",
+    "card_name_jp": "サンプル二",
+    "card_name_cn": "示例卡二",
+    "rarity": "R",
+    "color": "Red",
+    "type": "Event",
+    "energy_required": 3,
+    "ap": 1,
+    "bp": null,
+    "bp_pm": null,
+    "affinity": null,
+    "energy_generated_raw": "R+",
+    "effect_jp": "イベントカードのサンプル。",
+    "effect_cn": "事件卡示例。可以用於測試 R+ 的能量過濾。",
+    "trigger": "special",
+    "id": "UA54BT_MST-1-003",
+    "image_url": "https://www.unionarena-tcg.com/jp/images/cardlist/card/UA54BT_MST-1-003.png",
+    "energy_colors": [
+      "Red"
+    ],
+    "energy_count": 1,
+    "energy_has_plus": true
+  }
+]
