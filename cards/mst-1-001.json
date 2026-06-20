@@ -1,0 +1,30 @@
+[
+  {
+  "ip_code": "MST",
+  "series": "UA54BT",
+  "card_number": "MST-1-001",
+
+  "card_name_jp": "エリス",
+  "card_name_cn": "艾莉絲",
+
+  "rarity": "C",
+  "color": "Blue",
+  "type": "Character",
+
+  "energy_required": 0,
+  "ap": 1,
+  "bp": 1500,
+
+  "bp_pm": null,
+  "affinity": null,
+
+  "energy_colors": "Blue",
+  "energy_count": 1,
+  "energy_has_plus": false,
+
+  "effect_jp": null,
+  "effect_cn": null,
+
+  "trigger": "get",
+  }
+]
