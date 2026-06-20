@@ -378,6 +378,14 @@ function renderGrid() {
   });
 }
 
+function formatEffectText(value) {
+  return escapeHtml(
+    String(value || "—")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/&lt;br\s*\/?&gt;/gi, "\n")
+  ).replace(/\n/g, "<br>");
+}
+
 function renderDetails() {
   const c = state.allCards.find(x => x.id === state.selectedId);
   if (!c) {
@@ -421,14 +429,6 @@ function renderDetails() {
       <div class="effect-text">${formatEffectText(c.effect_jp)}</div>
     </div>
   `;
-}
-
-function formatEffectText(value) {
-  return escapeHtml(
-    String(value || "—")
-      .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/&lt;br\s*\/?&gt;/gi, "\n")
-  ).replace(/\n/g, "<br>");
 }
 
 function stat(label, value) {
