@@ -10,10 +10,19 @@ const COLOR_LETTER_MAP = {
   R: "Red",
   Y: "Yellow",
   G: "Green",
-  P: "Purple",
-  W: "White",
-  K: "Black"
+  P: "Purple"
 };
+
+const IP_CODE_LABEL_MAP = {
+  MST: "無職轉生～到了異世界就拿出真本事～"
+};
+
+function displayValue(key, value) {
+  if (key === "ip_code") {
+    return IP_CODE_LABEL_MAP[value] || value;
+  }
+  return value;
+}
 
 const state = {
   allCards: [],
@@ -133,12 +142,12 @@ function normalizeCard(c) {
     energy_has_plus: typeof c.energy_has_plus === "boolean" ? c.energy_has_plus : parsed.hasPlus,
     energy_signature: parsed.signature,
     search_text: [
-      id, c.ip_code, c.series, c.card_number,
-      c.card_name_jp, c.card_name_cn,
-      c.rarity, c.color, c.type, c.trigger,
-      c.effect_jp, c.effect_cn,
-      energyRaw
-    ].filter(Boolean).join(" ").toLowerCase()
+    id, c.ip_code, IP_CODE_LABEL_MAP[c.ip_code], c.series, c.card_number,
+    c.card_name_jp, c.card_name_cn,
+    c.rarity, c.color, c.type, c.trigger,
+    c.effect_jp, c.effect_cn,
+    energyRaw
+  ].filter(Boolean).join(" ").toLowerCase()
   };
 }
 
@@ -285,7 +294,9 @@ function getOptions(key) {
 
 function renderCheckbox(key, option) {
   const checked = state.filters[key].has(option.value) ? "checked" : "";
-  const label = key === "energy_has_plus" ? (option.value === "true" ? "Has +" : "No +") : option.value;
+  const label = key === "energy_has_plus"
+  ? (option.value === "true" ? "Has +" : "No +")
+  : displayValue(key, option.value);
   return `
     <label class="checkbox-row" title="${escapeHtml(label)}">
       <input type="checkbox" data-filter="${key}" value="${escapeHtml(option.value)}" ${checked} />
@@ -299,7 +310,13 @@ function renderChips() {
   const chips = [];
   if (state.q) chips.push({ label: `Search: ${state.q}`, action: "search" });
   for (const [key, set] of Object.entries(state.filters)) {
-    for (const value of set) chips.push({ label: `${key}: ${value}`, key, value });
+    for (const value of set) {
+      chips.push({
+        label: `${key}: ${displayValue(key, value)}`,
+        key,
+        value
+      });
+    }
   }
   for (const [key, r] of Object.entries(state.ranges)) {
     if (r.min !== "") chips.push({ label: `${key} ≥ ${r.min}`, range: key, bound: "min" });
