@@ -1,5 +1,38 @@
 <!doctype html>
 <html>
-  <head><meta charset="utf-8"><title>My site</title></head>
-  <body><h1>Hello from GitHub Pages</h1></body>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Cardlist Tool</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <input id="q" placeholder="Search…" />
+    <select id="sort">
+      <option value="relevance">Relevance</option>
+      <option value="similarity_desc">Similarity ↓</option>
+    </select>
+    <div id="count"></div>
+  </header>
+
+  <div class="app">
+    <aside class="sidebar">
+      <h3>Similarity</h3>
+      <div id="similarity-filters"></div>
+
+      <h3>Number of components</h3>
+      <div id="component-filters"></div>
+
+      <button id="clear">Clear filters</button>
+    </aside>
+
+    <main>
+      <div id="chips" class="chips"></div>
+      <div id="cards" class="cards"></div>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
 </html>
