@@ -27,6 +27,20 @@ const FIXED_FILTER_OPTIONS = {
     "color",
     "final",
     "special"
+  ],
+  type: [
+    "Character",
+    "Event",
+    "Field",
+    "AP",
+    "BP"
+  ],
+  color: [
+    "Red",
+    "Blue",
+    "Yellow",
+    "Green",
+    "Purple"
   ]
 };
 
@@ -40,7 +54,21 @@ const FILTER_LABEL_MAP = {
     color: "COLOR",
     final: "FINAL",
     special: "SPECIAL"
-  }
+  },
+  type: [
+    Character: "角色",
+    Event: "事件",
+    Field: "場地",
+    AP: "AP",
+    BP: "BP"
+  ],
+  color: [
+    Red: "紅",
+    Blue: "藍",
+    Yellow: "黃",
+    Green: "綠",
+    Purple: "紫"
+  ]
 };
 
 function displayValue(key, value) {
