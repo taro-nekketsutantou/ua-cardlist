@@ -73,7 +73,8 @@ const FILTER_LABEL_MAP = {
 
 function filterValueLabel(key, value) {
   if (key === "ip_code") {
-    return IP_CODE_LABEL_MAP[value] || value;
+    const title = IP_CODE_LABEL_MAP[value];
+    return title ? `${value} — ${title}` : value;
   }
 
   if (key === "energy_has_plus") {
@@ -126,18 +127,18 @@ const state = {
 };
 
 const filterGroups = [
-  { key: "ip_code", label: "IP Code" },
-  { key: "series", label: "Series" },
-  { key: "rarity", label: "Rarity" },
-  { key: "color", label: "Color" },
-  { key: "type", label: "Type" },
+  { key: "ip_code", label: "作品" },
+  { key: "series", label: "系列" },
+  { key: "rarity", label: "稀有度" },
+  { key: "color", label: "顔色" },
+  { key: "type", label: "種類" },
   { key: "trigger", label: "觸發" },
   { key: "energy_colors", label: "Generated Energy Color" },
   { key: "energy_has_plus", label: "Energy +" },
 ];
 
 const rangeGroups = [
-  { key: "energy_required", label: "Energy Required" },
+  { key: "energy_required", label: "能源需求" },
   { key: "ap", label: "AP" },
   { key: "bp", label: "BP" },
   { key: "energy_count", label: "Generated Energy Count" },
