@@ -95,6 +95,11 @@ function normalizeTrigger(value) {
   return s;
 }
 
+function normalizeColor(value) {
+  const s = String(value ?? "").trim();
+  return COLOR_LETTER_MAP[s.toUpperCase()] || s;
+}
+
 const state = {
   allCards: [],
   filteredCards: [],
@@ -197,10 +202,10 @@ async function init() {
   } catch (err) {
     console.error(err);
     state.allCards = [];
-    el.details.textContent = "Could not load cards.json.";
+    el.details.textContent = `Could not load cards.json: ${err.message}`;
   }
   state.selectedId = state.allCards[0]?.id ?? null;
-  applyAndRender()
+  applyAndRender();
 }
 
 function bindEvents() {
@@ -333,8 +338,8 @@ function sortCards(cards) {
   const av = Number(a[key]);
   const bv = Number(b[key]);
 
-    return (Number.isFinite(av) ? av : Infinity) -
-          (Number.isFinite(bv) ? bv : Infinity);
+  return (Number.isFinite(av) ? av : Infinity) -
+    (Number.isFinite(bv) ? bv : Infinity);
   };
 
   const byNumDesc = (a, b, key) => {
@@ -342,7 +347,7 @@ function sortCards(cards) {
     const bv = Number(b[key]);
 
     return (Number.isFinite(bv) ? bv : -Infinity) -
-          (Number.isFinite(av) ? av : -Infinity);
+      (Number.isFinite(av) ? av : -Infinity);
   };
   cards.sort((a, b) => {
     switch (state.sort) {
@@ -491,6 +496,16 @@ function renderChips() {
 }
 
 function renderGrid() {
+  if (state.filteredCards.length === 0) {
+    el.grid.style.height = "100%";
+    el.grid.innerHTML = `
+      <div class="empty-grid-message">
+        No cards found. Check whether cards.json loaded correctly.
+      </div>
+    `;
+    return;
+  }
+
   const width = Math.max(0, el.scroller.clientWidth);
   const height = el.scroller.clientHeight;
   const fullW = tile.width + tile.gap;
@@ -514,8 +529,7 @@ function renderGrid() {
       <div class="card-tile" style="left:${col * fullW}px; top:${row * fullH}px; width:${tile.width}px; height:${tile.height}px;">
         <button class="card-button ${c.id === state.selectedId ? "selected" : ""}" data-card-id="${escapeHtml(c.id)}" title="${escapeHtml(c.id)}">
           <div class="card-img-wrap">
-            <img class="card-img" src="${escapeHtml(c.image_url)}" alt="${escapeHtml(c.id)}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${PLACEHOLDER_SVG}'" />
-          </div>
+          <img class="card-img" src="${escapeHtml(c.image_url)}" alt="${escapeHtml(c.id)}" loading="lazy" decoding="async" referrerpolicy="no-referrer" />          </div>
           <div class="card-meta">
             <div class="card-code">${escapeHtml(c.id)}</div>
             <div class="card-name">${escapeHtml(c.card_name_cn || c.card_name_jp || "Untitled")}</div>
@@ -525,6 +539,7 @@ function renderGrid() {
     `);
   }
   el.grid.innerHTML = pieces.join("");
+  attachImageFallbacks(el.grid);
   el.grid.querySelectorAll("[data-card-id]").forEach(btn => {
     btn.addEventListener("click", () => {
       state.selectedId = btn.dataset.cardId;
@@ -551,8 +566,7 @@ function renderDetails() {
   }
   el.details.className = "";
   el.details.innerHTML = `
-    <img class="detail-image" src="${escapeHtml(c.image_url)}" alt="${escapeHtml(c.id)}" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${PLACEHOLDER_SVG}'" />
-    <div class="detail-title">${escapeHtml(c.card_name_cn || c.card_name_jp || c.id)}</div>
+    <img class="detail-image" src="${escapeHtml(c.image_url)}" alt="${escapeHtml(c.id)}" referrerpolicy="no-referrer" />    <div class="detail-title">${escapeHtml(c.card_name_cn || c.card_name_jp || c.id)}</div>
     <div class="detail-subtitle">${escapeHtml(c.card_name_jp || "")} · ${escapeHtml(c.id)}</div>
 
     <div class="pills">
@@ -585,6 +599,7 @@ function renderDetails() {
       <div class="effect-text">${formatEffectText(c.effect_jp)}</div>
     </div>
   `;
+  attachImageFallbacks(el.details);
 }
 
 function stat(label, value) {
@@ -597,6 +612,13 @@ function pill(text, colorClass = "") {
   return `<span class="pill ${safeClass}">${escapeHtml(text)}</span>`;
 }
 
+function attachImageFallbacks(root) {
+  root.querySelectorAll("img.card-img, img.detail-image").forEach(img => {
+    img.addEventListener("error", () => {
+      img.src = PLACEHOLDER_SVG;
+    }, { once: true });
+  });
+}
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")

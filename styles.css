@@ -17,6 +17,13 @@ body {
   background: var(--bg);
 }
 
+.empty-grid-message {
+  padding: 48px;
+  color: #64748b;
+  font-size: 14px;
+  text-align: center;
+}
+
 .app-shell {
   display: grid;
   grid-template-columns: 290px minmax(360px, 1fr) 380px;
