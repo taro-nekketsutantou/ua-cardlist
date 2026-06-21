@@ -240,7 +240,9 @@ function bindEvents() {
 
 function normalizeCard(c) {
   const id = c.id || `${c.series}_${c.card_number}`;
-  const display_code = `${c.series}/${c.card_number}`;
+  const display_code = c.series && c.card_number
+  ? `${c.series}/${c.card_number}`
+  : String(id).replace(/^([^_]+)_/, "$1/");
   const energyRaw = c.energy_generated_raw ?? c.energy_generated ?? "";
   const parsed = parseEnergy(energyRaw, c.energy_colors);
   const trigger = normalizeTrigger(c.trigger);
@@ -259,7 +261,7 @@ function normalizeCard(c) {
     energy_has_plus: typeof c.energy_has_plus === "boolean" ? c.energy_has_plus : parsed.hasPlus,
     energy_signature: parsed.signature,
     search_text: [
-    id, c.ip_code, c.series, c.card_number,
+    id, display_code, c.ip_code, c.series, c.card_number,
     c.card_name_jp, c.card_name_cn,
     c.rarity, color, c.type, trigger, c.trigger,
     c.effect_jp, c.effect_cn,
