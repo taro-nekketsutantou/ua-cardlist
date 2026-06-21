@@ -239,7 +239,8 @@ function bindEvents() {
 }
 
 function normalizeCard(c) {
-  const id = c.id || `${c.series}/${c.card_number}`;
+  const id = c.id || `${c.series}_${c.card_number}`;
+  const display_code = `${c.series}/${c.card_number}`;
   const energyRaw = c.energy_generated_raw ?? c.energy_generated ?? "";
   const parsed = parseEnergy(energyRaw, c.energy_colors);
   const trigger = normalizeTrigger(c.trigger);
@@ -247,6 +248,7 @@ function normalizeCard(c) {
   return {
     ...c,
     id,
+    display_code,
     color,
     trigger,
     trigger_raw: c.trigger ?? "",
@@ -532,7 +534,7 @@ function renderGrid() {
           <div class="card-img-wrap">
           <img class="card-img" src="${escapeHtml(c.image_url)}" alt="${escapeHtml(c.id)}" loading="lazy" decoding="async" referrerpolicy="no-referrer" />          </div>
           <div class="card-meta">
-            <div class="card-code">${escapeHtml(c.id)}</div>
+            <div class="card-code">${escapeHtml(c.display_code || c.id)}</div>
             <div class="card-name">${escapeHtml(c.card_name_cn || c.card_name_jp || "Untitled")}</div>
           </div>
         </button>
@@ -568,7 +570,7 @@ function renderDetails() {
   el.details.className = "";
   el.details.innerHTML = `
     <img class="detail-image" src="${escapeHtml(c.image_url)}" alt="${escapeHtml(c.id)}" referrerpolicy="no-referrer" />    <div class="detail-title">${escapeHtml(c.card_name_cn || c.card_name_jp || c.id)}</div>
-    <div class="detail-subtitle">${escapeHtml(c.card_name_jp || "")} · ${escapeHtml(c.id)}</div>
+    <div class="detail-subtitle">${escapeHtml(c.card_name_jp || "")} · ${escapeHtml(c.display_code || c.id)}</div>
 
     <div class="pills">
       ${pill(c.rarity)} ${pill(c.color, c.color)} ${pill(c.type)} ${pill(c.trigger)}
