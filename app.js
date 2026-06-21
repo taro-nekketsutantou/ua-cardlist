@@ -84,6 +84,14 @@ function filterValueLabel(key, value) {
   return FILTER_LABEL_MAP[key]?.[value] ?? value;
 }
 
+function checkboxValueLabel(key, value) {
+  if (key === "ip_code") {
+    return IP_CODE_LABEL_MAP[value] || value;
+  }
+
+  return filterValueLabel(key, value);
+}
+
 function normalizeTrigger(value) {
   const s = String(value ?? "").trim().toLowerCase();
 
@@ -459,10 +467,8 @@ function getOptions(key) {
 
 function renderCheckbox(key, option) {
   const checked = state.filters[key].has(option.value) ? "checked" : "";
-  const label =
-  key === "energy_has_plus"
-    ? (option.value === "true" ? "Has +" : "No +")
-    : FILTER_LABEL_MAP[key]?.[option.value] ?? option.value;
+  const label = checkboxValueLabel(key, option.value);
+
   return `
     <label class="checkbox-row" title="${escapeHtml(label)}">
       <input type="checkbox" data-filter="${key}" value="${escapeHtml(option.value)}" ${checked} />

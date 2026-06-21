@@ -24,6 +24,13 @@ body {
   text-align: center;
 }
 
+.option-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .app-shell {
   display: grid;
   grid-template-columns: 290px minmax(360px, 1fr) 380px;
