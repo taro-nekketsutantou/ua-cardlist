@@ -239,7 +239,7 @@ function bindEvents() {
 }
 
 function normalizeCard(c) {
-  const id = c.id || `${c.series}_${c.card_number}`;
+  const id = c.id || `${c.series}/${c.card_number}`;
   const energyRaw = c.energy_generated_raw ?? c.energy_generated ?? "";
   const parsed = parseEnergy(energyRaw, c.energy_colors);
   const trigger = normalizeTrigger(c.trigger);
