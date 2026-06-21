@@ -467,7 +467,7 @@ function getOptions(key) {
 
 function renderCheckbox(key, option) {
   const checked = state.filters[key].has(option.value) ? "checked" : "";
-  const label = checkboxValueLabel(key, option.value);
+  const label = filterValueLabel(key, option.value);
 
   return `
     <label class="checkbox-row" title="${escapeHtml(label)}">
