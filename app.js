@@ -71,11 +71,16 @@ const FILTER_LABEL_MAP = {
   }
 };
 
-function displayValue(key, value) {
+function filterValueLabel(key, value) {
   if (key === "ip_code") {
     return IP_CODE_LABEL_MAP[value] || value;
   }
-  return value;
+
+  if (key === "energy_has_plus") {
+    return value === "true" ? "Has +" : "No +";
+  }
+
+  return FILTER_LABEL_MAP[key]?.[value] ?? value;
 }
 
 function normalizeTrigger(value) {
@@ -137,25 +142,57 @@ const tile = { width: 184, height: 286, gap: 10, overscanRows: 3 };
 let layout = { cols: 1, rows: 0, visibleStart: 0, visibleEnd: 0 };
 let searchTimer = null;
 
-const el = {
-  search: document.getElementById("searchInput"),
-  sort: document.getElementById("sortSelect"),
-  count: document.getElementById("resultCount"),
-  filterRoot: document.getElementById("filterRoot"),
-  chips: document.getElementById("activeChips"),
-  clear: document.getElementById("clearFiltersBtn"),
-  scroller: document.getElementById("gridScroller"),
-  grid: document.getElementById("gridInner"),
-  details: document.getElementById("detailsRoot"),
-};
+let el;
 
-init();
+function getElements() {
+  return {
+    search: document.getElementById("searchInput"),
+    sort: document.getElementById("sortSelect"),
+    count: document.getElementById("resultCount"),
+    filterRoot: document.getElementById("filterRoot"),
+    chips: document.getElementById("activeChips"),
+    clear: document.getElementById("clearFiltersBtn"),
+    scroller: document.getElementById("gridScroller"),
+    grid: document.getElementById("gridInner"),
+    details: document.getElementById("detailsRoot"),
+  };
+}
+
+function assertElementsExist(elements) {
+  const missing = Object.entries(elements)
+    .filter(([, value]) => !value)
+    .map(([key]) => key);
+
+  if (missing.length) {
+    throw new Error(`Missing required DOM elements: ${missing.join(", ")}`);
+  }
+}
+
+
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", init);
+} else {
+  init();
+}
 
 async function init() {
+  el = getElements();
+  assertElementsExist(el);
   bindEvents();
   try {
     const res = await fetch("cards.json");
+
+    if (!res.ok) {
+      throw new Error(`Failed to load cards.json: ${res.status} ${res.statusText}`);
+    }
+
     const raw = await res.json();
+
+    if (!Array.isArray(raw)) {
+      throw new Error("cards.json must contain an array of cards");
+    }
+
     state.allCards = raw.map(normalizeCard);
   } catch (err) {
     console.error(err);
@@ -163,8 +200,7 @@ async function init() {
     el.details.textContent = "Could not load cards.json.";
   }
   state.selectedId = state.allCards[0]?.id ?? null;
-  renderFilters();
-  applyAndRender();
+  applyAndRender()
 }
 
 function bindEvents() {
@@ -185,8 +221,10 @@ function bindEvents() {
     state.q = "";
     el.search.value = "";
     for (const set of Object.values(state.filters)) set.clear();
-    for (const range of Object.values(state.ranges)) { range.min = ""; range.max = ""; }
-    renderFilters();
+    for (const range of Object.values(state.ranges)) {
+      range.min = "";
+      range.max = "";
+    }
     applyAndRender();
   });
 
@@ -199,21 +237,23 @@ function normalizeCard(c) {
   const energyRaw = c.energy_generated_raw ?? c.energy_generated ?? "";
   const parsed = parseEnergy(energyRaw, c.energy_colors);
   const trigger = normalizeTrigger(c.trigger);
+  const color = normalizeColor(c.color);
   return {
     ...c,
     id,
+    color,
     trigger,
     trigger_raw: c.trigger ?? "",
     image_url: c.image_url || `${IMAGE_BASE}${id}.png`,
     energy_generated_raw: energyRaw,
-    energy_colors: Array.isArray(c.energy_colors) ? c.energy_colors : parsed.colors,
+    energy_colors: parsed.colors,
     energy_count: Number.isFinite(Number(c.energy_count)) ? Number(c.energy_count) : parsed.count,
     energy_has_plus: typeof c.energy_has_plus === "boolean" ? c.energy_has_plus : parsed.hasPlus,
     energy_signature: parsed.signature,
     search_text: [
     id, c.ip_code, c.series, c.card_number,
     c.card_name_jp, c.card_name_cn,
-    c.rarity, c.color, c.type, trigger, c.trigger,
+    c.rarity, color, c.type, trigger, c.trigger,
     c.effect_jp, c.effect_cn,
     energyRaw
     ].filter(Boolean).join(" ").toLowerCase()
@@ -221,29 +261,44 @@ function normalizeCard(c) {
 }
 
 function parseEnergy(raw, existingColors) {
-  if (Array.isArray(existingColors)) {
-    return { colors: existingColors, count: String(raw || "").replace(/\+/g, "").length, hasPlus: String(raw || "").includes("+"), signature: String(raw || "") };
-  }
   const s = String(raw || "").trim().toUpperCase();
   const hasPlus = s.includes("+");
   const letters = [...s.replace(/\+/g, "")].filter(ch => /[A-Z]/.test(ch));
-  const colors = [...new Set(letters.map(ch => COLOR_LETTER_MAP[ch] || ch))];
+
+  const parsedColors = [...new Set(
+    letters.map(ch => COLOR_LETTER_MAP[ch] || ch)
+  )];
+
+  const colors = Array.isArray(existingColors) && existingColors.length
+    ? existingColors
+    : parsedColors;
+
   return {
     colors,
     count: letters.length,
     hasPlus,
-    signature: letters.sort().join("") + (hasPlus ? "+" : "")
+    signature: [...letters].sort().join("") + (hasPlus ? "+" : "")
   };
 }
 
-function applyAndRender() {
+function applyAndRender({ resetScroll = true, rebuildFilters = true } = {}) {
   state.filteredCards = state.allCards.filter(cardMatches);
   sortCards(state.filteredCards);
-  if (state.selectedId && !state.filteredCards.some(c => c.id === state.selectedId)) {
+
+  if (!state.filteredCards.some(c => c.id === state.selectedId)) {
     state.selectedId = state.filteredCards[0]?.id ?? null;
   }
+
+  if (resetScroll) {
+    el.scroller.scrollTop = 0;
+  }
+
   el.count.textContent = state.filteredCards.length;
-  renderFilters();
+
+  if (rebuildFilters) {
+    renderFilters();
+  }
+
   renderChips();
   renderGrid();
   renderDetails();
@@ -274,14 +329,28 @@ function cardMatches(c) {
 
 function sortCards(cards) {
   const byStr = (a, b, key) => String(a[key] ?? "").localeCompare(String(b[key] ?? ""), undefined, { numeric: true });
-  const byNum = (a, b, key) => (Number(a[key]) || 0) - (Number(b[key]) || 0);
+  const byNumAsc = (a, b, key) => {
+  const av = Number(a[key]);
+  const bv = Number(b[key]);
+
+    return (Number.isFinite(av) ? av : Infinity) -
+          (Number.isFinite(bv) ? bv : Infinity);
+  };
+
+  const byNumDesc = (a, b, key) => {
+    const av = Number(a[key]);
+    const bv = Number(b[key]);
+
+    return (Number.isFinite(bv) ? bv : -Infinity) -
+          (Number.isFinite(av) ? av : -Infinity);
+  };
   cards.sort((a, b) => {
     switch (state.sort) {
       case "code_desc": return -byStr(a, b, "id");
-      case "bp_desc": return -byNum(a, b, "bp") || byStr(a, b, "id");
-      case "bp_asc": return byNum(a, b, "bp") || byStr(a, b, "id");
-      case "cost_desc": return -byNum(a, b, "energy_required") || byStr(a, b, "id");
-      case "cost_asc": return byNum(a, b, "energy_required") || byStr(a, b, "id");
+      case "bp_desc": return byNumDesc(a, b, "bp") || byStr(a, b, "id");
+      case "bp_asc": return byNumAsc(a, b, "bp") || byStr(a, b, "id");
+      case "cost_desc": return byNumDesc(a, b, "energy_required") || byStr(a, b, "id");
+      case "cost_asc": return byNumAsc(a, b, "energy_required") || byStr(a, b, "id");
       default: return byStr(a, b, "id");
     }
   });
@@ -294,7 +363,7 @@ function renderFilters() {
     const collapsed = state.collapsed.has(group.key);
     html.push(`
       <section class="filter-section">
-        <button class="filter-heading" data-collapse="${group.key}">
+        <button class="filter-heading" data-collapse="${group.key}" aria-expanded="${!collapsed}">
           <span>${escapeHtml(group.label)}</span>
           <span class="filter-count">${options.length} ${collapsed ? "+" : "−"}</span>
         </button>
@@ -329,13 +398,13 @@ function renderFilters() {
   el.filterRoot.querySelectorAll("[data-range-min]").forEach(input => {
     input.addEventListener("input", (e) => {
       state.ranges[e.target.dataset.rangeMin].min = e.target.value;
-      applyAndRender();
+      applyAndRender({ rebuildFilters: false });
     });
   });
   el.filterRoot.querySelectorAll("[data-range-max]").forEach(input => {
     input.addEventListener("input", (e) => {
       state.ranges[e.target.dataset.rangeMax].max = e.target.value;
-      applyAndRender();
+      applyAndRender({ rebuildFilters: false });
     });
   });
   el.filterRoot.querySelectorAll("[data-collapse]").forEach(btn => {
@@ -399,7 +468,7 @@ function renderChips() {
   for (const [key, set] of Object.entries(state.filters)) {
     for (const value of set) {
       chips.push({
-        label: `${key}: ${displayValue(key, value)}`,
+        label: `${key}: ${filterValueLabel(key, value)}`,
         key,
         value
       });
@@ -422,7 +491,7 @@ function renderChips() {
 }
 
 function renderGrid() {
-  const width = el.scroller.clientWidth - 28;
+  const width = Math.max(0, el.scroller.clientWidth);
   const height = el.scroller.clientHeight;
   const fullW = tile.width + tile.gap;
   const fullH = tile.height + tile.gap;
