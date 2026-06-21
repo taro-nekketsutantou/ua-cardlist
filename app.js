@@ -20,24 +20,26 @@ const IP_CODE_LABEL_MAP = {
 const FIXED_FILTER_OPTIONS = {
   trigger: [
     "",
-    "active",
-    "color",
-    "draw",
-    "final",
     "get",
-    "raid"
+    "draw",
+    "active",
+    "raid",
+    "color",
+    "final",
+    "special"
   ]
 };
 
 const FILTER_LABEL_MAP = {
   trigger: {
-    "": "No trigger",
-    active: "Active",
-    color: "Color",
-    draw: "Draw",
-    final: "Final",
-    get: "Get",
-    raid: "Raid"
+    "": "無觸發",
+    get: "獲得",
+    draw: "抽牌",
+    active: "激活",
+    raid: "突襲",
+    color: "COLOR",
+    final: "FINAL",
+    special: "SPECIAL"
   }
 };
 
@@ -91,7 +93,7 @@ const filterGroups = [
   { key: "rarity", label: "Rarity" },
   { key: "color", label: "Color" },
   { key: "type", label: "Type" },
-  { key: "trigger", label: "Trigger" },
+  { key: "trigger", label: "觸發" },
   { key: "energy_colors", label: "Generated Energy Color" },
   { key: "energy_has_plus", label: "Energy +" },
 ];
