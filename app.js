@@ -55,20 +55,20 @@ const FILTER_LABEL_MAP = {
     final: "FINAL",
     special: "SPECIAL"
   },
-  type: [
+  type: {
     Character: "角色",
     Event: "事件",
     Field: "場地",
     AP: "AP",
     BP: "BP"
-  ],
-  color: [
+  },
+  color: {
     Red: "紅",
     Blue: "藍",
     Yellow: "黃",
     Green: "綠",
     Purple: "紫"
-  ]
+  }
 };
 
 function displayValue(key, value) {
