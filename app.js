@@ -17,11 +17,47 @@ const IP_CODE_LABEL_MAP = {
   MST: "無職轉生～到了異世界就拿出真本事～"
 };
 
+const FIXED_FILTER_OPTIONS = {
+  trigger: [
+    "",
+    "active",
+    "color",
+    "draw",
+    "final",
+    "get",
+    "raid"
+  ]
+};
+
+const FILTER_LABEL_MAP = {
+  trigger: {
+    "": "No trigger",
+    active: "Active",
+    color: "Color",
+    draw: "Draw",
+    final: "Final",
+    get: "Get",
+    raid: "Raid"
+  }
+};
+
 function displayValue(key, value) {
   if (key === "ip_code") {
     return IP_CODE_LABEL_MAP[value] || value;
   }
   return value;
+}
+
+function normalizeTrigger(value) {
+  const s = String(value ?? "").trim().toLowerCase();
+
+  if (!s) return "";
+
+  if (s.startsWith("color_")) {
+    return "color";
+  }
+
+  return s;
 }
 
 const state = {
@@ -132,9 +168,12 @@ function normalizeCard(c) {
   const id = c.id || `${c.series}_${c.card_number}`;
   const energyRaw = c.energy_generated_raw ?? c.energy_generated ?? "";
   const parsed = parseEnergy(energyRaw, c.energy_colors);
+  const trigger = normalizeTrigger(c.trigger);
   return {
     ...c,
     id,
+    trigger,
+    trigger_raw: c.trigger ?? "",
     image_url: c.image_url || `${IMAGE_BASE}${id}.png`,
     energy_generated_raw: energyRaw,
     energy_colors: Array.isArray(c.energy_colors) ? c.energy_colors : parsed.colors,
@@ -142,12 +181,12 @@ function normalizeCard(c) {
     energy_has_plus: typeof c.energy_has_plus === "boolean" ? c.energy_has_plus : parsed.hasPlus,
     energy_signature: parsed.signature,
     search_text: [
-    id, c.ip_code, IP_CODE_LABEL_MAP[c.ip_code], c.series, c.card_number,
+    id, c.ip_code, c.series, c.card_number,
     c.card_name_jp, c.card_name_cn,
-    c.rarity, c.color, c.type, c.trigger,
+    c.rarity, c.color, c.type, trigger, c.trigger,
     c.effect_jp, c.effect_cn,
     energyRaw
-  ].filter(Boolean).join(" ").toLowerCase()
+    ].filter(Boolean).join(" ").toLowerCase()
   };
 }
 
@@ -280,23 +319,41 @@ function renderFilters() {
 
 function getOptions(key) {
   const counts = new Map();
+
   for (const c of state.allCards) {
-    const values = key === "energy_colors" ? (c.energy_colors || []) : key === "energy_has_plus" ? [String(Boolean(c.energy_has_plus))] : [String(c[key] ?? "")];
+    const values =
+      key === "energy_colors"
+        ? (c.energy_colors || [])
+        : key === "energy_has_plus"
+          ? [String(Boolean(c.energy_has_plus))]
+          : [String(c[key] ?? "")];
+
     for (const value of values) {
-      if (!value) continue;
       counts.set(value, (counts.get(value) || 0) + 1);
     }
   }
+
+  if (FIXED_FILTER_OPTIONS[key]) {
+    return FIXED_FILTER_OPTIONS[key].map(value => ({
+      value,
+      count: counts.get(value) || 0
+    }));
+  }
+
   return [...counts.entries()]
+    .filter(([value]) => value)
     .map(([value, count]) => ({ value, count }))
-    .sort((a, b) => a.value.localeCompare(b.value, undefined, { numeric: true }));
+    .sort((a, b) =>
+      a.value.localeCompare(b.value, undefined, { numeric: true })
+    );
 }
 
 function renderCheckbox(key, option) {
   const checked = state.filters[key].has(option.value) ? "checked" : "";
-  const label = key === "energy_has_plus"
-  ? (option.value === "true" ? "Has +" : "No +")
-  : displayValue(key, option.value);
+  const label =
+  key === "energy_has_plus"
+    ? (option.value === "true" ? "Has +" : "No +")
+    : FILTER_LABEL_MAP[key]?.[option.value] ?? option.value;
   return `
     <label class="checkbox-row" title="${escapeHtml(label)}">
       <input type="checkbox" data-filter="${key}" value="${escapeHtml(option.value)}" ${checked} />
